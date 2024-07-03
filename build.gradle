@@ -1,0 +1,114 @@
+buildscript {
+    dependencies {
+        classpath 'org.postgresql:postgresql:42.7.3'
+        classpath "org.flywaydb:flyway-database-postgresql:10.13.0"
+    }
+}
+
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.1'
+    id 'io.spring.dependency-management' version '1.1.5'
+    id 'org.flywaydb.flyway' version '10.15.2'
+    id 'nu.studer.jooq' version '9.0'
+}
+
+group = 'de.kipper'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-jooq'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    implementation 'org.jooq:jooq-codegen:3.19.10'
+    implementation 'org.jooq:jooq-meta:3.19.10'
+    implementation 'org.jooq:jooq:3.19.10'
+
+    runtimeOnly 'org.postgresql:postgresql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+def db_url = 'jdbc:postgresql://localhost:9432/db'
+def db_user = 'admin'
+def db_password = 'admin'
+
+import org.jooq.codegen.GenerationTool
+import org.jooq.meta.jaxb.*
+
+tasks.register('jooqGenerate') {
+    doLast {
+        GenerationTool.generate(new Configuration()
+                .withJdbc(new Jdbc()
+                        .withDriver('org.postgresql.Driver')
+                        .withUrl(db_url)
+                        .withUser(db_user)
+                        .withPassword(db_password))
+                .withGenerator(new Generator()
+                        .withDatabase(new Database()
+                                .withSchemata(
+                                        new SchemaMappingType().withInputSchema('public'))
+                                .withExcludes('flyway_schema_history')
+                                .withRecordVersionFields("version")
+                        )
+                        .withGenerate(new Generate()
+                                .withTables(true)
+                                .withPojos(true)
+                                .withRecords(true)
+                                .withDaos(true)
+                                .withFluentSetters(true)
+                                .withJavaTimeTypes(true)
+                                .withSpringAnnotations(true)
+                                .withValidationAnnotations(true)
+                        )
+                        .withTarget(new Target()
+                                .withPackageName('de.kipper.spring_jooq_flyway_security_keycloak_template.jooq')
+                                .withDirectory(projectDir.toString() + '/src/main/java/generated/data')
+                                .withEncoding('UTF-8')
+                        )
+                )
+        )
+    }
+}
+
+flyway {
+    driver = 'org.postgresql.Driver'
+    url = db_url
+    user = db_user
+    password = db_password
+    schemas = ['public']
+    skipDefaultCallbacks = false
+    cleanDisabled = false
+    locations = ["filesystem:$project.projectDir/src/main/resources/db/migration"]
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java', 'src/main/java/generated/data']
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+}

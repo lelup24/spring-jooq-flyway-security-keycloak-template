@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: spring-jooq-flyway-security-keycloak-template
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:9432/db}
+    username: admin
+    password: admin
+    driver-class-name: org.postgresql.Driver
+
+  threads:
+    virtual:
+      enabled: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ISSUER_URL:http://localhost:8888/realms/test-realm}
